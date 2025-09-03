@@ -1,0 +1,75 @@
+# Template rendered by make render-ingress (uses ${MINIKUBE_IP})
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pingpong-a-cert
+  namespace: pingpong-a
+spec:
+  secretName: pingpong-a-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: selfsigned-cluster-issuer
+  dnsNames:
+    - pingpong-a.${MINIKUBE_IP}.sslip.io
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pingpong-a
+  namespace: pingpong-a
+  annotations:
+    cert-manager.io/cluster-issuer: selfsigned-cluster-issuer
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: ["pingpong-a.${MINIKUBE_IP}.sslip.io"]
+      secretName: pingpong-a-tls
+  rules:
+    - host: pingpong-a.${MINIKUBE_IP}.sslip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pingpong-a
+                port:
+                  number: 8080
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pingpong-b-cert
+  namespace: pingpong-b
+spec:
+  secretName: pingpong-b-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: selfsigned-cluster-issuer
+  dnsNames:
+    - pingpong-b.${MINIKUBE_IP}.sslip.io
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pingpong-b
+  namespace: pingpong-b
+  annotations:
+    cert-manager.io/cluster-issuer: selfsigned-cluster-issuer
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: ["pingpong-b.${MINIKUBE_IP}.sslip.io"]
+      secretName: pingpong-b-tls
+  rules:
+    - host: pingpong-b.${MINIKUBE_IP}.sslip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pingpong-b
+                port:
+                  number: 8080

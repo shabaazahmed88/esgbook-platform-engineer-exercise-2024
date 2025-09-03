@@ -1,0 +1,8 @@
+# Linkerd control-plane Helm values for ESGBook exercise
+# Enforce mTLS by default for inbound connections to meshed pods
+policyController:
+  defaultAllowPolicy: all-authenticated
+
+#  quiet proxy logs a bit
+proxy:
+  logLevel: warn,linkerd=info

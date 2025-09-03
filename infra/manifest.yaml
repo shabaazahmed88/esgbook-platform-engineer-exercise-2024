@@ -4,6 +4,11 @@ kind: Namespace
 metadata:
   name: pingpong-a
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pingpong-b
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,19 +37,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: pingponger-a
+  name: pingpong-a
+  namespace: pingpong-a
 spec:
   selector:
-    app.kubernetes.io/name: pingponger-a
+    app.kubernetes.io/name: pingpong-a
   ports:
     - protocol: TCP
       port: 8080
       targetPort: 8080
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: pingpong-b
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -74,11 +75,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: pingponger-b
+  name: pingpong-b
   namespace: pingpong-b
 spec:
   selector:
-    app.kubernetes.io/name: pingponger-b
+    app.kubernetes.io/name: pingpong-b
   ports:
     - protocol: TCP
       port: 8080
