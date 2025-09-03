@@ -1,0 +1,18 @@
+# Distribute the Linkerd Trust Anchor to all namespaces as a ConfigMap named 'linkerd-trust-bundle'
+apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: linkerd-trust-bundle
+  namespace: linkerd
+spec:
+  sources:
+    - secret:
+        name: linkerd-trust-anchor
+        key: ca.crt
+        namespace: linkerd
+  target:
+    # Create/maintain a ConfigMap in every namespace
+    configMap:
+      key: ca.crt
+      name: linkerd-trust-bundle
+    namespaceSelector: {}

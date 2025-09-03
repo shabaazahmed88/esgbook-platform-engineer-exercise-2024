@@ -1,69 +1,185 @@
-# ESGBook Platform Engineer Exercise
+# ESGBook Platform Engineer Exercise – Completed Solution
 
-This repository contains the exercise for the ESGBook Platform Engineer role.
+This repository contains the exercise for the ESGBook Platform Engineer role, **with enhancements implemented** to make the cluster more production-ready.  
+
+---
 
 ## Time
 
 You can either do this test before the interview or during, we usually recommend doing it before, so we can discuss your
-findings during the interview. However, we understand that sometimes it's easier to do it during the interview.
+findings during the interview.  
 
-Either way we recommend spending around 1-2 hours on this test if doing it before the interview.
+---
 
 ## Requirements
 
-- A way to run a Kubernetes cluster locally, in the example Makefile we use minikube however you can use any other tool
-  you prefer.
-- Docker to build the images.
-- Go if you want to build the services locally.
+- [Minikube](https://minikube.sigs.k8s.io/docs/start/) (used in Makefile, but other local clusters work)
+- [Docker](https://www.docker.com/)
+- [Go](https://golang.org/) (for building the PingPong service)
+- [Helm](https://helm.sh/)  
+- [mkcert](https://github.com/FiloSottile/mkcert)  
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)  
+- GNU Make  
+
+---
 
 ## Introduction
 
-This exercise is designed to test your ability to deploy and debug services and networking on a Kubernetes cluster.
-The example service given is a simple ping/pong service, named PingPong. Which features two main functionalities:
+The PingPong service has two core functionalities:
 
-- Pinging: It periodically sends a request to a given target service every n ticks.
-- Ponging: It responds with a `pong` message when called on the `GET /ping` endpoint.
+- **Pinging** – periodically sends a request to another service every `n` ticks  
+- **Ponging** – responds with a `pong` message when called at `GET /ping`  
 
-There are other functionalities that have been templated out for you to implement, these are optional and are there to
-test your ability to think about the wider implications of running a service in production. These are:
+On top of this, we **implemented several optional production-readiness features**:  
 
-- HTTPS
-- mTLS
-- Prometheus metrics
+✅ Dockerfile for building service container  
+✅ HTTPS via ingress-nginx + cert-manager + mkcert  
+✅ Prometheus metrics instrumentation in service + scraping config  
+✅ Linkerd service mesh with **mTLS enabled**  
+✅ Basic **Network Policies** for zero-trust posture  
+✅ Automated Makefile commands (`platform-up`, `platform-up-trusted`, `deploy`)  
+✅ Monitoring dashboards for MinIO, CloudNativePG, and Kubernetes components  
 
-## Challenges
+---
 
-1) First, you need to write a Dockerfile for the PingPong service. The dockerfile needs to be in the `services/pingpong`
-   directory. An example command to build the go binary is:
+## How to Run – Step by Step
 
+### 1. Start the cluster
+```bash
+make platform-up
 ```
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o pingpong
+This provisions the Minikube cluster with required addons.  
+
+---
+
+### 2. Enable Minikube tunnel
+```bash
+minikube tunnel -p esgbook-test-cluster-1
+```
+> Keep this running in a separate terminal window.  
+
+---
+
+### 3. Deploy trusted platform setup (with TLS)
+```bash
+make platform-up-trusted
 ```
 
-2) Next we'll need to get the cluster up, you should be able to run `make cluster-up-with-services` if you have chosen
-   to use minikube.
+---
 
-3) Next lets check if everything is up and running correctly. If not, fix the issues and provide details about your
-   findings.
+### 4. Find your Minikube IP
+```bash
+minikube ip -p esgbook-test-cluster-1
+```
+Example: `192.168.49.2`
 
-### Optional Challenges
+---
 
-You can pick and choose how you would improve this solution ranging from cluster security all the way to improving the
-PingPong service, whatever you choose to do, please document your findings and the steps you took to implement them.
+### 5. Add manual hosts entries
+Because ingress-nginx exposes services as `127.0.0.1` when tunneling, map the sslip.io domains to localhost:  
 
-Here are some examples of what you could do, and would encourage you to do:
+```bash
+echo "127.0.0.1 pingpong-a.192.168.49.2.sslip.io" | sudo tee -a /etc/hosts
+echo "127.0.0.1 pingpong-b.192.168.49.2.sslip.io" | sudo tee -a /etc/hosts
+```
 
-- Implementing HTTPS
-- Implementing mTLS
-- Implementing Prometheus metrics
-- Better cluster posture, e.g. network policies, pod security policies, etc.
-- Service mesh. Zero trust architecture.
+---
 
-### Production Ready
+### 6. Verify services
+```bash
+kubectl get pods -A
+```
 
-Think about what else you would do to make this service, cluster and solution production ready. Feel free to implement
-them or include them in your documentation.
+Access in browser:
 
-### Submitting
+- `https://pingpong-a.127.0.0.1.sslip.io/ping`
+- `https://pingpong-b.127.0.0.1.sslip.io/ping`  
 
-Please send us your solution via email. If you have any questions, please don't hesitate to ask.
+---
+
+### 7. Service Mesh with mTLS (enabled by `platform-up-trusted`)
+`platform-up-trusted` installs and configures Linkerd with mTLS. After running it, simply verify the control-plane is healthy:
+
+```bash
+kubectl -n linkerd get pods
+linkerd check
+```
+
+> If you brought the cluster up without `platform-up-trusted`, you can enable the mesh later with:
+> ```bash
+> make mesh-up
+> kubectl -n linkerd get pods
+> linkerd check
+> ```
+
+---
+
+### 8. Monitoring Dashboards
+- Grafana dashboards for Kubernetes, MinIO, and CloudNativePG are automatically deployed.  
+- Access Grafana via Ingress: [https://grafana.127.0.0.1.sslip.io/login](https://grafana.127.0.0.1.sslip.io/login)  
+- Ingress manifest: `infra/grafana-ingress-127.yaml`  
+- Prometheus Operator scrapes metrics from PingPong and cluster components.  
+
+---
+
+## ✅ Enhancements Implemented
+
+- **HTTPS with mkcert + cert-manager**  
+- **Linkerd mTLS** with automatic sidecar injection  
+- **Prometheus metrics** instrumentation and scraping  
+- **Grafana dashboards** for observability (Kubernetes, MinIO, CloudNativePG)  
+- **Network Policies** for zero trust posture  
+- **Makefile automation** for cluster lifecycle  
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph Minikube Cluster
+        direction LR
+        subgraph Namespace pingpong-a
+            A[pingpong-a Deployment] -->|/ping| IA[Ingress A]
+        end
+        subgraph Namespace pingpong-b
+            B[pingpong-b Deployment] -->|/ping| IB[Ingress B]
+        end
+        subgraph Ingress Controller
+            IA --> NGINX[NGINX Ingress Controller]
+            IB --> NGINX
+        end
+        subgraph Linkerd Mesh
+            A <--> B
+        end
+        subgraph Monitoring
+            P[Prometheus Operator] --> G[Grafana Dashboards]
+        end
+    end
+
+    Browser -->|HTTPS/TLS via sslip.io| NGINX
+    NGINX --> Linkerd
+    Linkerd --> P
+```
+
+---
+
+## Production-Ready Considerations
+
+- CI/CD pipeline for automated builds & deployments  
+- Centralized logging (ELK or Loki)  
+- Resource requests/limits set for pods  
+- HPA (Horizontal Pod Autoscaler)  
+- PodSecurityPolicies / OPA Gatekeeper (policy enforcement)  
+- Multi-tenancy via namespaces  
+
+---
+
+## Cleanup
+```bash
+make platform-down
+```
+
+---
+
+✨ This solution goes beyond the base task by adding **TLS, mTLS, observability, automation, monitoring dashboards, and security posture improvements**.  
